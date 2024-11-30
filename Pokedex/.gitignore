@@ -1,0 +1,14 @@
+
+*.xcbkptlist
+
+*.xcuserstate
+
+SwiftPokedex/Networking/
+
+*/.DS_Store
+
+*.xcworkspacedata
+
+.DS_Store
+
+SwiftPokedex.xcodeproj/project.xcworkspace/xcuserdata/vg.xcuserdatad/
