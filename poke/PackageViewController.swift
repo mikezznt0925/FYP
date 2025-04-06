@@ -2,6 +2,8 @@ import UIKit
 
 class PackageViewController: UIViewController {
     
+    static var capturedPokemons: [Pokemon] = []
+    private var filteredPokemons: [Pokemon] = []
     private let searchController = UISearchController(searchResultsController: nil)
     private let tableView: UITableView = {
         let table = UITableView()
@@ -31,10 +33,8 @@ class PackageViewController: UIViewController {
         return label
     }()
     
-    private var capturedPokemons: [Pokemon] = []
-    private var filteredPokemons: [Pokemon] = []
     private var isSearching: Bool {
-        return searchController.isActive && !searchController.searchBar.text!.isEmpty
+        return searchController.isActive && !(searchController.searchBar.text?.isEmpty ?? true)
     }
     
     override func viewDidLoad() {
@@ -106,7 +106,7 @@ class PackageViewController: UIViewController {
                 do {
                     let pokemon = try JSONDecoder().decode(Pokemon.self, from: data)
                     DispatchQueue.main.async {
-                        self?.capturedPokemons.append(pokemon)
+                        PackageViewController.capturedPokemons.append(pokemon)
                         self?.tableView.reloadData()
                     }
                 } catch {
@@ -117,23 +117,23 @@ class PackageViewController: UIViewController {
     }
     
     func addCapturedPokemon(_ pokemon: Pokemon) {
-        capturedPokemons.append(pokemon)
+        PackageViewController.capturedPokemons.append(pokemon)
         tableView.reloadData()
     }
 }
 
 extension PackageViewController: UITableViewDelegate, UITableViewDataSource {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return isSearching ? filteredPokemons.count : capturedPokemons.count
+        return isSearching ? filteredPokemons.count : PackageViewController.capturedPokemons.count
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "PokemonCell", for: indexPath) as! PokemonTableViewCell
-        let pokemon = isSearching ? filteredPokemons[indexPath.row] : capturedPokemons[indexPath.row]
+        let pokemon = isSearching ? filteredPokemons[indexPath.row] : PackageViewController.capturedPokemons[indexPath.row]
         
         cell.configure(with: pokemon) { [weak self] in
             // 检查是否只剩最后一只宝可梦
-            if (self?.isSearching == true ? self?.filteredPokemons.count : self?.capturedPokemons.count) ?? 0 <= 1 {
+            if (self?.isSearching == true ? self?.filteredPokemons.count : PackageViewController.capturedPokemons.count) ?? 0 <= 1 {
                 let alert = UIAlertController(
                     title: "Cannot Delete",
                     message: "You cannot delete the last Pokemon",
@@ -153,10 +153,10 @@ extension PackageViewController: UITableViewDelegate, UITableViewDataSource {
             alert.addAction(UIAlertAction(title: "No", style: .cancel))
             alert.addAction(UIAlertAction(title: "Yes", style: .destructive) { [weak self] _ in
                 guard let self = self else { return }
-                let pokemon = self.isSearching ? self.filteredPokemons[indexPath.row] : self.capturedPokemons[indexPath.row]
+                let pokemon = self.isSearching ? self.filteredPokemons[indexPath.row] : PackageViewController.capturedPokemons[indexPath.row]
                 
-                if let index = self.capturedPokemons.firstIndex(where: { $0.name == pokemon.name }) {
-                    self.capturedPokemons.remove(at: index)
+                if let index = PackageViewController.capturedPokemons.firstIndex(where: { $0.name == pokemon.name }) {
+                    PackageViewController.capturedPokemons.remove(at: index)
                     if self.isSearching {
                         self.filteredPokemons.remove(at: indexPath.row)
                     }
@@ -172,7 +172,7 @@ extension PackageViewController: UITableViewDelegate, UITableViewDataSource {
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
-        let pokemon = isSearching ? filteredPokemons[indexPath.row] : capturedPokemons[indexPath.row]
+        let pokemon = isSearching ? filteredPokemons[indexPath.row] : PackageViewController.capturedPokemons[indexPath.row]
         
         let detailVC = PokemonDetailViewController(pokemon: pokemon)
         navigationController?.pushViewController(detailVC, animated: true)
@@ -181,7 +181,7 @@ extension PackageViewController: UITableViewDelegate, UITableViewDataSource {
     func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
         if editingStyle == .delete {
             // 检查是否只剩最后一只宝可梦
-            if (isSearching ? filteredPokemons.count : capturedPokemons.count) <= 1 {
+            if (isSearching ? filteredPokemons.count : PackageViewController.capturedPokemons.count) <= 1 {
                 let alert = UIAlertController(
                     title: "Cannot Delete",
                     message: "You cannot delete the last Pokemon",
@@ -192,7 +192,7 @@ extension PackageViewController: UITableViewDelegate, UITableViewDataSource {
                 return
             }
             
-            let pokemon = isSearching ? filteredPokemons[indexPath.row] : capturedPokemons[indexPath.row]
+            let pokemon = isSearching ? filteredPokemons[indexPath.row] : PackageViewController.capturedPokemons[indexPath.row]
             
             let alert = UIAlertController(
                 title: "Release Pokemon?",
@@ -202,8 +202,8 @@ extension PackageViewController: UITableViewDelegate, UITableViewDataSource {
             
             alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
             alert.addAction(UIAlertAction(title: "Release", style: .destructive) { [weak self] _ in
-                if let index = self?.capturedPokemons.firstIndex(where: { $0.name == pokemon.name }) {
-                    self?.capturedPokemons.remove(at: index)
+                if let index = PackageViewController.capturedPokemons.firstIndex(where: { $0.name == pokemon.name }) {
+                    PackageViewController.capturedPokemons.remove(at: index)
                     if self?.isSearching == true {
                         self?.filteredPokemons.remove(at: indexPath.row)
                     }
@@ -220,7 +220,7 @@ extension PackageViewController: UISearchResultsUpdating {
     func updateSearchResults(for searchController: UISearchController) {
         guard let searchText = searchController.searchBar.text?.lowercased() else { return }
         
-        filteredPokemons = capturedPokemons.filter { pokemon in
+        filteredPokemons = PackageViewController.capturedPokemons.filter { pokemon in
             return pokemon.name.lowercased().contains(searchText)
         }
         

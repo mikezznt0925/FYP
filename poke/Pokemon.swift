@@ -7,6 +7,7 @@ struct Pokemon: Codable {
     let baseExperience: Int
     let stats: [Stat]
     let sprites: Sprites
+    let types: [PokemonType]
     
     enum CodingKeys: String, CodingKey {
         case name
@@ -15,6 +16,7 @@ struct Pokemon: Codable {
         case baseExperience = "base_experience"
         case stats
         case sprites
+        case types
     }
     
     struct Stat: Codable {
@@ -51,5 +53,13 @@ struct Pokemon: Codable {
         enum CodingKeys: String, CodingKey {
             case frontDefault = "front_default"
         }
+    }
+}
+
+struct PokemonType: Codable {
+    let type: TypeInfo
+    
+    struct TypeInfo: Codable {
+        let name: String
     }
 } 

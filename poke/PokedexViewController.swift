@@ -6,21 +6,40 @@ class PokedexViewController: UIViewController {
     private let tableView = UITableView()
     private let searchController = UISearchController(searchResultsController: nil)
     private var filteredPokemons: [Pokemon] = []
+    private let backgroundImageView = UIImageView()
     
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
-        title = "Pokemon"
+        title = "PokéMaster - 你的宝可梦图鉴"
         
+        setupBackground()
         setupSearchController()
         setupTableView()
         fetchPokemonData()
+    }
+    
+    private func setupBackground() {
+        backgroundImageView.image = UIImage(named: "pokedex_background")
+        backgroundImageView.contentMode = .scaleAspectFill
+        backgroundImageView.alpha = 0.1
+        view.addSubview(backgroundImageView)
+        backgroundImageView.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            backgroundImageView.topAnchor.constraint(equalTo: view.topAnchor),
+            backgroundImageView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            backgroundImageView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            backgroundImageView.trailingAnchor.constraint(equalTo: view.trailingAnchor)
+        ])
     }
     
     private func setupSearchController() {
         searchController.searchResultsUpdater = self
         searchController.obscuresBackgroundDuringPresentation = false
         searchController.searchBar.placeholder = "Search Pokemon"
+        searchController.searchBar.searchBarStyle = .minimal
+        searchController.searchBar.tintColor = .systemBlue
         navigationItem.searchController = searchController
         definesPresentationContext = true
     }
@@ -32,18 +51,20 @@ class PokedexViewController: UIViewController {
         tableView.delegate = self
         tableView.register(PokemonCell.self, forCellReuseIdentifier: "PokemonCell")
         tableView.separatorStyle = .none
-        tableView.backgroundColor = .systemBackground
+        tableView.backgroundColor = .clear
+        tableView.showsVerticalScrollIndicator = false
         
         NSLayoutConstraint.activate([
-            tableView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            tableView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
             tableView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
-            tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor)
+            tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16)
         ])
     }
     
     private func fetchPokemonData() {
-        guard let url = URL(string: "https://pokeapi.co/api/v2/pokemon?limit=20") else { return }
+        // 获取所有宝可梦的数据
+        guard let url = URL(string: "https://pokeapi.co/api/v2/pokemon?limit=1000") else { return }
         
         let task = URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
             if let error = error {
@@ -147,7 +168,7 @@ extension PokedexViewController: UITableViewDataSource {
 
 extension PokedexViewController: UITableViewDelegate {
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        return 80
+        return 100
     }
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
@@ -172,8 +193,12 @@ extension PokedexViewController: UISearchResultsUpdating {
 class PokemonCell: UITableViewCell {
     private let containerView: UIView = {
         let view = UIView()
-        view.backgroundColor = .systemGray6
-        view.layer.cornerRadius = 10
+        view.backgroundColor = .systemBackground
+        view.layer.cornerRadius = 15
+        view.layer.shadowColor = UIColor.black.cgColor
+        view.layer.shadowOffset = CGSize(width: 0, height: 2)
+        view.layer.shadowRadius = 4
+        view.layer.shadowOpacity = 0.1
         view.translatesAutoresizingMaskIntoConstraints = false
         return view
     }()
@@ -187,7 +212,8 @@ class PokemonCell: UITableViewCell {
     
     private let nameLabel: UILabel = {
         let label = UILabel()
-        label.font = .systemFont(ofSize: 18, weight: .medium)
+        label.font = .systemFont(ofSize: 20, weight: .bold)
+        label.textColor = .label
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
@@ -212,17 +238,17 @@ class PokemonCell: UITableViewCell {
         NSLayoutConstraint.activate([
             containerView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
             containerView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -8),
-            containerView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
-            containerView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
+            containerView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            containerView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
             
-            pokemonImageView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 16),
+            pokemonImageView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 20),
             pokemonImageView.centerYAnchor.constraint(equalTo: containerView.centerYAnchor),
-            pokemonImageView.widthAnchor.constraint(equalToConstant: 50),
-            pokemonImageView.heightAnchor.constraint(equalToConstant: 50),
+            pokemonImageView.widthAnchor.constraint(equalToConstant: 80),
+            pokemonImageView.heightAnchor.constraint(equalToConstant: 80),
             
-            nameLabel.leadingAnchor.constraint(equalTo: pokemonImageView.trailingAnchor, constant: 16),
+            nameLabel.leadingAnchor.constraint(equalTo: pokemonImageView.trailingAnchor, constant: 20),
             nameLabel.centerYAnchor.constraint(equalTo: containerView.centerYAnchor),
-            nameLabel.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -16)
+            nameLabel.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -20)
         ])
     }
     

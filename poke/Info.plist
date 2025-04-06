@@ -23,5 +23,7 @@
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>We need your location to show Pokemon around you.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>We need camera access to show Pokemon in AR.</string>
 </dict>
 </plist>

@@ -144,6 +144,9 @@ class ViewController: UIViewController {
         } else if sender.titleLabel?.text == "Package" {
             let packageVC = PackageViewController()
             navigationController?.pushViewController(packageVC, animated: true)
+        } else if sender.titleLabel?.text == "Capture" {
+            let captureVC = CaptureViewController()
+            navigationController?.pushViewController(captureVC, animated: true)
         }
     }
 }
