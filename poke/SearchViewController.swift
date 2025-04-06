@@ -29,6 +29,7 @@ class SearchViewController: UIViewController {
     private var userLocation: CLLocation?
     private var pokemons: [Pokemon] = []
     private var pokemonAnnotations: [PokemonAnnotation] = []
+    private var savedPokemonLocations: [String: CLLocationCoordinate2D] = [:]
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -38,6 +39,7 @@ class SearchViewController: UIViewController {
         setupMapView()
         setupLocationManager()
         setupLocationButton()
+        loadPokemonLocations()  // 加载保存的位置信息
         fetchPokemonData()
     }
     
@@ -116,6 +118,7 @@ class SearchViewController: UIViewController {
             )
             pokemonAnnotations.append(pikachuAnnotation)
             mapView.addAnnotation(pikachuAnnotation)
+            savedPokemonLocations["pikachu"] = userLocation.coordinate
         }
         
         // 从剩余的19只宝可梦中随机选择9只
@@ -125,16 +128,29 @@ class SearchViewController: UIViewController {
         
         // 添加选中的9只宝可梦
         for pokemon in selectedPokemons {
-            if let randomLocation = generateRandomLocation() {
-                let annotation = PokemonAnnotation(
-                    coordinate: randomLocation,
-                    pokemon: pokemon,
-                    title: pokemon.name.capitalized
-                )
-                pokemonAnnotations.append(annotation)
-                mapView.addAnnotation(annotation)
+            let coordinate: CLLocationCoordinate2D
+            
+            // 如果已经保存了位置，使用保存的位置
+            if let savedLocation = savedPokemonLocations[pokemon.name] {
+                coordinate = savedLocation
+            } else {
+                // 否则生成新的随机位置并保存
+                guard let randomLocation = generateRandomLocation() else { continue }
+                coordinate = randomLocation
+                savedPokemonLocations[pokemon.name] = coordinate
             }
+            
+            let annotation = PokemonAnnotation(
+                coordinate: coordinate,
+                pokemon: pokemon,
+                title: pokemon.name.capitalized
+            )
+            pokemonAnnotations.append(annotation)
+            mapView.addAnnotation(annotation)
         }
+        
+        // 保存位置信息到UserDefaults
+        savePokemonLocations()
     }
     
     private func generateRandomLocation() -> CLLocationCoordinate2D? {
@@ -149,6 +165,25 @@ class SearchViewController: UIViewController {
         let lon = userLocation.coordinate.longitude + (randomRadius * cos(randomAngle) / (111111.0 * cos(userLocation.coordinate.latitude * .pi / 180.0)))
         
         return CLLocationCoordinate2D(latitude: lat, longitude: lon)
+    }
+    
+    private func savePokemonLocations() {
+        let locationsData = savedPokemonLocations.map { (name, coordinate) in
+            ["name": name, "latitude": coordinate.latitude, "longitude": coordinate.longitude]
+        }
+        UserDefaults.standard.set(locationsData, forKey: "savedPokemonLocations")
+    }
+    
+    private func loadPokemonLocations() {
+        if let locationsData = UserDefaults.standard.array(forKey: "savedPokemonLocations") as? [[String: Any]] {
+            for locationData in locationsData {
+                if let name = locationData["name"] as? String,
+                   let latitude = locationData["latitude"] as? Double,
+                   let longitude = locationData["longitude"] as? Double {
+                    savedPokemonLocations[name] = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+                }
+            }
+        }
     }
     
     @objc private func centerMapOnUserLocation() {
