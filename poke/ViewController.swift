@@ -138,6 +138,9 @@ class ViewController: UIViewController {
         if sender.currentTitle == "Pokedex" {
             let pokedexVC = PokedexViewController()
             navigationController?.pushViewController(pokedexVC, animated: true)
+        } else if sender.currentTitle == "Search" {
+            let searchVC = SearchViewController()
+            navigationController?.pushViewController(searchVC, animated: true)
         }
     }
 }
