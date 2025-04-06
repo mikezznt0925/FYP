@@ -10,6 +10,21 @@ class SearchViewController: UIViewController {
         return map
     }()
     
+    private let locationButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.backgroundColor = .white
+        button.layer.cornerRadius = 25
+        button.layer.shadowColor = UIColor.black.cgColor
+        button.layer.shadowOffset = CGSize(width: 0, height: 2)
+        button.layer.shadowRadius = 4
+        button.layer.shadowOpacity = 0.3
+        button.setImage(UIImage(systemName: "location.fill")?.withRenderingMode(.alwaysTemplate), for: .normal)
+        button.tintColor = .systemBlue
+        button.addTarget(nil, action: #selector(centerMapOnUserLocation), for: .touchUpInside)
+        return button
+    }()
+    
     private let locationManager = CLLocationManager()
     private var userLocation: CLLocation?
     private var pokemons: [Pokemon] = []
@@ -22,6 +37,7 @@ class SearchViewController: UIViewController {
         
         setupMapView()
         setupLocationManager()
+        setupLocationButton()
         fetchPokemonData()
     }
     
@@ -43,6 +59,17 @@ class SearchViewController: UIViewController {
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
         locationManager.requestWhenInUseAuthorization()
         locationManager.startUpdatingLocation()
+    }
+    
+    private func setupLocationButton() {
+        view.addSubview(locationButton)
+        
+        NSLayoutConstraint.activate([
+            locationButton.widthAnchor.constraint(equalToConstant: 50),
+            locationButton.heightAnchor.constraint(equalToConstant: 50),
+            locationButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            locationButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20)
+        ])
     }
     
     private func fetchPokemonData() {
@@ -91,13 +118,18 @@ class SearchViewController: UIViewController {
             mapView.addAnnotation(pikachuAnnotation)
         }
         
-        // 添加其他随机宝可梦
-        for i in 1..<pokemons.count {
+        // 从剩余的19只宝可梦中随机选择9只
+        var availablePokemons = Array(pokemons[1..<pokemons.count])
+        availablePokemons.shuffle()
+        let selectedPokemons = Array(availablePokemons.prefix(9))
+        
+        // 添加选中的9只宝可梦
+        for pokemon in selectedPokemons {
             if let randomLocation = generateRandomLocation() {
                 let annotation = PokemonAnnotation(
                     coordinate: randomLocation,
-                    pokemon: pokemons[i],
-                    title: pokemons[i].name.capitalized
+                    pokemon: pokemon,
+                    title: pokemon.name.capitalized
                 )
                 pokemonAnnotations.append(annotation)
                 mapView.addAnnotation(annotation)
@@ -108,8 +140,8 @@ class SearchViewController: UIViewController {
     private func generateRandomLocation() -> CLLocationCoordinate2D? {
         guard let userLocation = userLocation else { return nil }
         
-        // 在用户位置周围5公里范围内生成随机位置
-        let radius = 5000.0 // 5公里
+        // 在用户位置周围10公里范围内生成随机位置
+        let radius = 10000.0 // 10公里
         let randomAngle = Double.random(in: 0...2 * .pi)
         let randomRadius = Double.random(in: 0...radius)
         
@@ -118,6 +150,18 @@ class SearchViewController: UIViewController {
         
         return CLLocationCoordinate2D(latitude: lat, longitude: lon)
     }
+    
+    @objc private func centerMapOnUserLocation() {
+        guard let userLocation = userLocation else { return }
+        
+        // 点击定位按钮时显示3公里范围
+        let region = MKCoordinateRegion(
+            center: userLocation.coordinate,
+            latitudinalMeters: 3000,
+            longitudinalMeters: 3000
+        )
+        mapView.setRegion(region, animated: true)
+    }
 }
 
 extension SearchViewController: CLLocationManagerDelegate {
@@ -125,11 +169,11 @@ extension SearchViewController: CLLocationManagerDelegate {
         guard let location = locations.last else { return }
         userLocation = location
         
-        // 设置地图区域，扩大到5公里范围
+        // 设置地图初始区域，显示3公里范围
         let region = MKCoordinateRegion(
             center: location.coordinate,
-            latitudinalMeters: 5000,
-            longitudinalMeters: 5000
+            latitudinalMeters: 3000,
+            longitudinalMeters: 3000
         )
         mapView.setRegion(region, animated: true)
         
