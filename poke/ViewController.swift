@@ -126,7 +126,7 @@ class ViewController: UIViewController {
     }
     
     @objc private func buttonTapped(_ sender: UIButton) {
-        // Add button press animation
+        // 按钮点击动画
         UIView.animate(withDuration: 0.1, animations: {
             sender.transform = CGAffineTransform(scaleX: 0.95, y: 0.95)
         }) { _ in
@@ -135,12 +135,15 @@ class ViewController: UIViewController {
             }
         }
         
-        if sender.currentTitle == "Pokedex" {
+        if sender.titleLabel?.text == "Pokedex" {
             let pokedexVC = PokedexViewController()
             navigationController?.pushViewController(pokedexVC, animated: true)
-        } else if sender.currentTitle == "Search" {
+        } else if sender.titleLabel?.text == "Search" {
             let searchVC = SearchViewController()
             navigationController?.pushViewController(searchVC, animated: true)
+        } else if sender.titleLabel?.text == "Package" {
+            let packageVC = PackageViewController()
+            navigationController?.pushViewController(packageVC, animated: true)
         }
     }
 }
