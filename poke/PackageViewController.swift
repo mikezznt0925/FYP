@@ -3,6 +3,7 @@ import UIKit
 class PackageViewController: UIViewController {
     
     static var capturedPokemons: [Pokemon] = []
+    private static var hasLoadedInitialPokemon = false
     private var filteredPokemons: [Pokemon] = []
     private let searchController = UISearchController(searchResultsController: nil)
     private let tableView: UITableView = {
@@ -94,6 +95,11 @@ class PackageViewController: UIViewController {
     }
     
     private func loadInitialPokemon() {
+        // 如果已经加载过初始宝可梦，直接返回
+        if PackageViewController.hasLoadedInitialPokemon {
+            return
+        }
+        
         // 获取初始三只宝可梦
         let initialPokemons = ["blastoise", "charizard", "ivysaur"]
         
@@ -114,6 +120,9 @@ class PackageViewController: UIViewController {
                 }
             }.resume()
         }
+        
+        // 标记已经加载过初始宝可梦
+        PackageViewController.hasLoadedInitialPokemon = true
     }
     
     func addCapturedPokemon(_ pokemon: Pokemon) {
