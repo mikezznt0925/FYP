@@ -11,7 +11,7 @@ class PokedexViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
-        title = "PokéMaster - 你的宝可梦图鉴"
+        title = "PokéMaster"
         
         setupBackground()
         setupSearchController()
