@@ -220,23 +220,35 @@ class CaptureViewController: UIViewController, ARSCNViewDelegate {
         if skill == "Impact" && eeveeSkill == "Strike" {
             playerDamage = 30
             playerEffect = "Effective hit! Impact nullifies Strike!"
+            // 玩家宝可梦攻击动画
+            animateAttack(attacker: playerEeveeNode, defender: wildEeveeNode)
         } else if skill == "Fight" && eeveeSkill == "Impact" {
             playerDamage = 30
             playerEffect = "Effective hit! Fight nullifies Impact!"
+            // 玩家宝可梦攻击动画
+            animateAttack(attacker: playerEeveeNode, defender: wildEeveeNode)
         } else if skill == "Strike" && eeveeSkill == "Fight" {
             playerDamage = 30
             playerEffect = "Effective hit! Strike nullifies Fight!"
+            // 玩家宝可梦攻击动画
+            animateAttack(attacker: playerEeveeNode, defender: wildEeveeNode)
         }
         
         if eeveeSkill == "Impact" && skill == "Strike" {
             eeveeDamage = 30
             eeveeEffect = "Effective hit! Impact nullifies Strike!"
+            // 野生宝可梦攻击动画
+            animateAttack(attacker: wildEeveeNode, defender: playerEeveeNode)
         } else if eeveeSkill == "Fight" && skill == "Impact" {
             eeveeDamage = 30
             eeveeEffect = "Effective hit! Fight nullifies Impact!"
+            // 野生宝可梦攻击动画
+            animateAttack(attacker: wildEeveeNode, defender: playerEeveeNode)
         } else if eeveeSkill == "Strike" && skill == "Fight" {
             eeveeDamage = 30
             eeveeEffect = "Effective hit! Strike nullifies Fight!"
+            // 野生宝可梦攻击动画
+            animateAttack(attacker: wildEeveeNode, defender: playerEeveeNode)
         }
         
         // 更新血量
@@ -253,6 +265,56 @@ class CaptureViewController: UIViewController, ARSCNViewDelegate {
         } else if playerPokemonHealth <= 0 {
             endBattle(isPlayerWin: false)
         }
+    }
+    
+    private func animateAttack(attacker: SCNNode?, defender: SCNNode?) {
+        guard let attacker = attacker, let defender = defender else { return }
+        
+        // 保存原始位置
+        let originalPosition = attacker.position
+        
+        // 创建攻击动画
+        let moveForward = SCNAction.move(to: defender.position, duration: 0.2)
+        let moveBack = SCNAction.move(to: originalPosition, duration: 0.2)
+        
+        // 添加震动效果
+        let shake = SCNAction.sequence([
+            SCNAction.moveBy(x: 0.1, y: 0, z: 0, duration: 0.05),
+            SCNAction.moveBy(x: -0.2, y: 0, z: 0, duration: 0.1),
+            SCNAction.moveBy(x: 0.1, y: 0, z: 0, duration: 0.05)
+        ])
+        
+        // 创建受击动画
+        let hitShake = SCNAction.sequence([
+            SCNAction.moveBy(x: 0.1, y: 0, z: 0, duration: 0.05),
+            SCNAction.moveBy(x: -0.2, y: 0, z: 0, duration: 0.1),
+            SCNAction.moveBy(x: 0.1, y: 0, z: 0, duration: 0.05)
+        ])
+        
+        // 创建闪烁效果
+        let originalColor = defender.geometry?.firstMaterial?.diffuse.contents
+        let flash = SCNAction.sequence([
+            SCNAction.run { _ in defender.geometry?.firstMaterial?.diffuse.contents = UIColor.red },
+            SCNAction.wait(duration: 0.1),
+            SCNAction.run { _ in defender.geometry?.firstMaterial?.diffuse.contents = originalColor }
+        ])
+        
+        // 执行攻击者动画序列
+        let attackerSequence = SCNAction.sequence([
+            moveForward,
+            shake,
+            moveBack
+        ])
+        
+        // 执行防御者动画序列
+        let defenderSequence = SCNAction.sequence([
+            hitShake,
+            flash
+        ])
+        
+        // 同时执行两个动画
+        attacker.runAction(attackerSequence)
+        defender.runAction(defenderSequence)
     }
     
     @objc private func captureButtonTapped() {
