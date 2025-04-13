@@ -9,6 +9,16 @@ struct Pokemon: Codable {
     let sprites: Sprites
     let types: [PokemonType]
     
+    init(name: String, height: Int, weight: Int, baseExperience: Int, stats: [Stat], types: [PokemonType], sprites: Sprites) {
+        self.name = name
+        self.height = height
+        self.weight = weight
+        self.baseExperience = baseExperience
+        self.stats = stats
+        self.types = types
+        self.sprites = sprites
+    }
+    
     enum CodingKeys: String, CodingKey {
         case name
         case height
@@ -22,6 +32,11 @@ struct Pokemon: Codable {
     struct Stat: Codable {
         let baseStat: Int
         let name: String
+        
+        init(baseStat: Int, name: String) {
+            self.baseStat = baseStat
+            self.name = name
+        }
         
         enum CodingKeys: String, CodingKey {
             case baseStat = "base_stat"

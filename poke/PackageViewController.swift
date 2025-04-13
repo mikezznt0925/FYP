@@ -3,6 +3,7 @@ import UIKit
 class PackageViewController: UIViewController {
     
     static var capturedPokemons: [Pokemon] = []
+    static var selectedPokemon: Pokemon?
     private static var hasLoadedInitialPokemon = false
     private var filteredPokemons: [Pokemon] = []
     private let searchController = UISearchController(searchResultsController: nil)
@@ -136,7 +137,7 @@ extension PackageViewController: UITableViewDelegate, UITableViewDataSource {
         let cell = tableView.dequeueReusableCell(withIdentifier: "PokemonCell", for: indexPath) as! PokemonTableViewCell
         let pokemon = isSearching ? filteredPokemons[indexPath.row] : PackageViewController.capturedPokemons[indexPath.row]
         
-        cell.configure(with: pokemon) { [weak self] in
+        cell.configure(with: pokemon, deleteAction: { [weak self] in
             // 检查是否只剩最后一只宝可梦
             if (self?.isSearching == true ? self?.filteredPokemons.count : PackageViewController.capturedPokemons.count) ?? 0 <= 1 {
                 let alert = UIAlertController(
@@ -170,7 +171,18 @@ extension PackageViewController: UITableViewDelegate, UITableViewDataSource {
             })
             
             self?.present(alert, animated: true)
-        }
+        }, battleAction: { [weak self] in
+            let pokemon = self?.isSearching == true ? self?.filteredPokemons[indexPath.row] : PackageViewController.capturedPokemons[indexPath.row]
+            // 只记录选中的宝可梦，不跳转
+            PackageViewController.selectedPokemon = pokemon
+            let alert = UIAlertController(
+                title: "Pokemon Selected",
+                message: "\(pokemon!.name.capitalized) is ready for battle!",
+                preferredStyle: .alert
+            )
+            alert.addAction(UIAlertAction(title: "OK", style: .default))
+            self?.present(alert, animated: true)
+        })
         
         return cell
     }
@@ -275,7 +287,18 @@ class PokemonTableViewCell: UITableViewCell {
         return button
     }()
     
+    private let battleButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.setTitle("Battle", for: .normal)
+        button.backgroundColor = .systemBlue
+        button.setTitleColor(.white, for: .normal)
+        button.layer.cornerRadius = 8
+        return button
+    }()
+    
     var deleteAction: (() -> Void)?
+    var battleAction: (() -> Void)?
     
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -294,8 +317,10 @@ class PokemonTableViewCell: UITableViewCell {
         containerView.addSubview(pokemonImageView)
         containerView.addSubview(nameLabel)
         containerView.addSubview(deleteButton)
+        containerView.addSubview(battleButton)
         
         deleteButton.addTarget(self, action: #selector(deleteButtonTapped), for: .touchUpInside)
+        battleButton.addTarget(self, action: #selector(battleButtonTapped), for: .touchUpInside)
         
         NSLayoutConstraint.activate([
             containerView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 12),
@@ -311,12 +336,17 @@ class PokemonTableViewCell: UITableViewCell {
             nameLabel.leadingAnchor.constraint(equalTo: pokemonImageView.trailingAnchor, constant: 20),
             nameLabel.centerYAnchor.constraint(equalTo: containerView.centerYAnchor),
             
+            battleButton.trailingAnchor.constraint(equalTo: deleteButton.leadingAnchor, constant: -12),
+            battleButton.centerYAnchor.constraint(equalTo: containerView.centerYAnchor),
+            battleButton.widthAnchor.constraint(equalToConstant: 80),
+            battleButton.heightAnchor.constraint(equalToConstant: 30),
+            
             deleteButton.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -20),
             deleteButton.centerYAnchor.constraint(equalTo: containerView.centerYAnchor),
             deleteButton.widthAnchor.constraint(equalToConstant: 30),
             deleteButton.heightAnchor.constraint(equalToConstant: 30),
             
-            nameLabel.trailingAnchor.constraint(lessThanOrEqualTo: deleteButton.leadingAnchor, constant: -12)
+            nameLabel.trailingAnchor.constraint(lessThanOrEqualTo: battleButton.leadingAnchor, constant: -12)
         ])
     }
     
@@ -324,9 +354,14 @@ class PokemonTableViewCell: UITableViewCell {
         deleteAction?()
     }
     
-    func configure(with pokemon: Pokemon, deleteAction: @escaping () -> Void) {
+    @objc private func battleButtonTapped() {
+        battleAction?()
+    }
+    
+    func configure(with pokemon: Pokemon, deleteAction: @escaping () -> Void, battleAction: @escaping () -> Void) {
         nameLabel.text = pokemon.name.capitalized
         self.deleteAction = deleteAction
+        self.battleAction = battleAction
         
         if let url = URL(string: pokemon.sprites.frontDefault) {
             URLSession.shared.dataTask(with: url) { [weak self] data, response, error in

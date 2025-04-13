@@ -2,251 +2,322 @@ import UIKit
 import ARKit
 import SceneKit
 
-class CaptureViewController: UIViewController {
+class CaptureViewController: UIViewController, ARSCNViewDelegate {
     
-    private let sceneView: ARSCNView = {
-        let view = ARSCNView()
-        view.translatesAutoresizingMaskIntoConstraints = false
-        return view
+    // MARK: - Properties
+    private var arView: ARSCNView!
+    private var eeveeNode: SCNNode?
+    private var eeveeHealth = 100
+    private var playerPokemonHealth = 100
+    private var isBattleStarted = false
+    private var isEeveeDefeated = false
+    private var packageVC: PackageViewController?
+    
+    // UI Elements
+    private let healthLabel: UILabel = {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.textColor = .white
+        label.font = .systemFont(ofSize: 20, weight: .bold)
+        label.backgroundColor = .black.withAlphaComponent(0.5)
+        label.textAlignment = .center
+        label.layer.cornerRadius = 10
+        label.clipsToBounds = true
+        return label
+    }()
+    
+    private let actionLabel: UILabel = {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.textColor = .white
+        label.font = .systemFont(ofSize: 16)
+        label.backgroundColor = .black.withAlphaComponent(0.5)
+        label.textAlignment = .center
+        label.layer.cornerRadius = 10
+        label.clipsToBounds = true
+        label.numberOfLines = 0
+        return label
+    }()
+    
+    private let skillStackView: UIStackView = {
+        let stack = UIStackView()
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        stack.axis = .horizontal
+        stack.distribution = .fillEqually
+        stack.spacing = 10
+        return stack
     }()
     
     private let captureButton: UIButton = {
         let button = UIButton(type: .system)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.setTitle("Capture", for: .normal)
+        button.backgroundColor = .systemBlue
         button.setTitleColor(.white, for: .normal)
-        button.backgroundColor = .systemRed
-        button.layer.cornerRadius = 30
-        button.titleLabel?.font = .systemFont(ofSize: 20, weight: .bold)
-        button.layer.shadowColor = UIColor.black.cgColor
-        button.layer.shadowOffset = CGSize(width: 0, height: 2)
-        button.layer.shadowRadius = 4
-        button.layer.shadowOpacity = 0.3
-        button.isEnabled = false  // 初始时禁用按钮
+        button.layer.cornerRadius = 10
+        button.isHidden = true
         return button
     }()
     
-    private let statusLabel: UILabel = {
-        let label = UILabel()
-        label.translatesAutoresizingMaskIntoConstraints = false
-        label.textColor = .white
-        label.font = .systemFont(ofSize: 16, weight: .medium)
-        label.textAlignment = .center
-        label.backgroundColor = UIColor.black.withAlphaComponent(0.5)
-        label.layer.cornerRadius = 10
-        label.clipsToBounds = true
-        return label
-    }()
-    
-    private var currentPokemon: Pokemon?
-    private var pokemonNode: SCNNode?
-    
+    // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
+        view.backgroundColor = .black
         setupUI()
         setupAR()
+        
+        // 检查是否已选择宝可梦
+        if PackageViewController.capturedPokemons.isEmpty {
+            showAlert(title: "Error", message: "You don't have any Pokemon in your package.")
+            return
+        }
+        
+        if let selectedPokemon = PackageViewController.selectedPokemon {
+            updateHealthLabel()
+        } else {
+            showAlert(title: "Error", message: "Please select a Pokemon from your package first.")
+            return
+        }
     }
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        startARSession()
+        let configuration = ARWorldTrackingConfiguration()
+        arView.session.run(configuration)
     }
     
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-        sceneView.session.pause()
+        arView.session.pause()
     }
     
+    // MARK: - Setup
     private func setupUI() {
         view.backgroundColor = .black
-        title = "Capture Pokemon"
         
-        view.addSubview(sceneView)
-        view.addSubview(captureButton)
-        view.addSubview(statusLabel)
+        // AR View
+        arView = ARSCNView(frame: view.bounds)
+        arView.delegate = self
+        view.addSubview(arView)
         
+        // Health Label
+        view.addSubview(healthLabel)
         NSLayoutConstraint.activate([
-            sceneView.topAnchor.constraint(equalTo: view.topAnchor),
-            sceneView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            sceneView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            sceneView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            
+            healthLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
+            healthLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            healthLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            healthLabel.heightAnchor.constraint(equalToConstant: 40)
+        ])
+        
+        // Action Label
+        view.addSubview(actionLabel)
+        NSLayoutConstraint.activate([
+            actionLabel.topAnchor.constraint(equalTo: healthLabel.bottomAnchor, constant: 10),
+            actionLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            actionLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            actionLabel.heightAnchor.constraint(equalToConstant: 60)
+        ])
+        
+        // Skill Buttons
+        let impactButton = createSkillButton(title: "Impact")
+        let fightButton = createSkillButton(title: "Fight")
+        let strikeButton = createSkillButton(title: "Strike")
+        
+        skillStackView.addArrangedSubview(impactButton)
+        skillStackView.addArrangedSubview(fightButton)
+        skillStackView.addArrangedSubview(strikeButton)
+        
+        view.addSubview(skillStackView)
+        NSLayoutConstraint.activate([
+            skillStackView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
+            skillStackView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            skillStackView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            skillStackView.heightAnchor.constraint(equalToConstant: 50)
+        ])
+        
+        // Capture Button
+        view.addSubview(captureButton)
+        NSLayoutConstraint.activate([
+            captureButton.bottomAnchor.constraint(equalTo: skillStackView.topAnchor, constant: -20),
             captureButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            captureButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -30),
             captureButton.widthAnchor.constraint(equalToConstant: 120),
-            captureButton.heightAnchor.constraint(equalToConstant: 60),
-            
-            statusLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            statusLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
-            statusLabel.widthAnchor.constraint(equalToConstant: 200),
-            statusLabel.heightAnchor.constraint(equalToConstant: 40)
+            captureButton.heightAnchor.constraint(equalToConstant: 40)
         ])
         
         captureButton.addTarget(self, action: #selector(captureButtonTapped), for: .touchUpInside)
     }
     
     private func setupAR() {
-        sceneView.delegate = self
-        sceneView.showsStatistics = false
-        sceneView.autoenablesDefaultLighting = true
-        sceneView.debugOptions = [.showFeaturePoints]  // 添加特征点显示，帮助调试
+        // 创建伊布模型
+        let eeveeScene = SCNScene(named: "art.scnassets/eevee.scn")!
+        eeveeNode = eeveeScene.rootNode.childNodes.first
+        eeveeNode?.position = SCNVector3(0, 0, -1)
+        eeveeNode?.scale = SCNVector3(0.001, 0.001, 0.001) // 缩小100倍
+        arView.scene.rootNode.addChildNode(eeveeNode!)
+        
+        // 设置AR场景
+        arView.autoenablesDefaultLighting = true
+        arView.scene.background.contents = nil // 设置为nil以显示相机画面
     }
     
-    private func startARSession() {
-        guard ARWorldTrackingConfiguration.isSupported else {
-            statusLabel.text = "AR not supported on this device"
+    private func createSkillButton(title: String) -> UIButton {
+        let button = UIButton(type: .system)
+        button.setTitle(title, for: .normal)
+        button.backgroundColor = .systemBlue
+        button.setTitleColor(.white, for: .normal)
+        button.layer.cornerRadius = 10
+        button.addTarget(self, action: #selector(skillButtonTapped(_:)), for: .touchUpInside)
+        return button
+    }
+    
+    // MARK: - Actions
+    @objc private func skillButtonTapped(_ sender: UIButton) {
+        guard let skill = sender.titleLabel?.text else { return }
+        guard let selectedPokemon = PackageViewController.selectedPokemon else {
+            showAlert(title: "Error", message: "Please select a Pokemon first")
             return
         }
         
-        let configuration = ARWorldTrackingConfiguration()
-        configuration.planeDetection = .horizontal
+        // 使用选中的宝可梦进行战斗
+        let damage = calculateDamage(for: skill, from: selectedPokemon)
+        eeveeHealth = max(0, eeveeHealth - damage)
         
-        sceneView.session.run(configuration, options: [.resetTracking, .removeExistingAnchors])
-        statusLabel.text = "Move your device to detect surfaces"
-    }
-    
-    private func spawnRandomPokemon() {
-        // 清除现有的宝可梦
-        pokemonNode?.removeFromParentNode()
+        // 更新UI
+        updateHealthLabel()
         
-        // 随机选择一个宝可梦
-        let pokemonNames = ["pikachu", "bulbasaur", "charmander", "squirtle", "jigglypuff"]
-        let randomName = pokemonNames.randomElement() ?? "pikachu"
-        
-        // 获取宝可梦数据
-        guard let url = URL(string: "https://pokeapi.co/api/v2/pokemon/\(randomName)") else { return }
-        
-        URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
-            guard let data = data, error == nil else { return }
-            
-            do {
-                let pokemon = try JSONDecoder().decode(Pokemon.self, from: data)
-                DispatchQueue.main.async {
-                    self?.currentPokemon = pokemon
-                    self?.statusLabel.text = "A wild \(pokemon.name.capitalized) appeared!"
-                    self?.spawnPokemonModel(pokemon: pokemon)
-                    self?.captureButton.isEnabled = true  // 宝可梦出现后启用按钮
-                }
-            } catch {
-                print("Error decoding Pokemon: \(error)")
-            }
-        }.resume()
-    }
-    
-    private func spawnPokemonModel(pokemon: Pokemon) {
-        // 创建宝可梦模型节点
-        let pokemonNode = SCNNode()
-        
-        // 设置宝可梦的位置（在相机前方2米处）
-        guard let currentFrame = sceneView.session.currentFrame else { return }
-        let transform = currentFrame.camera.transform
-        var translation = matrix_identity_float4x4
-        translation.columns.3.z = -2.0
-        let finalTransform = simd_mul(transform, translation)
-        pokemonNode.simdTransform = finalTransform
-        
-        // 根据宝可梦名称加载对应的3D模型
-        let modelName = getModelName(for: pokemon.name)
-        if let modelScene = SCNScene(named: "\(modelName).scn") {
-            let modelNode = modelScene.rootNode.childNodes.first!
-            modelNode.scale = SCNVector3(0.1, 0.1, 0.1)  // 调整模型大小
-            pokemonNode.addChildNode(modelNode)
-        } else {
-            // 如果找不到模型文件，使用默认的球体
-            let sphere = SCNSphere(radius: 0.2)
-            sphere.firstMaterial?.diffuse.contents = UIColor.red
-            pokemonNode.geometry = sphere
+        // 检查战斗是否结束
+        if eeveeHealth <= 0 {
+            endBattle(isPlayerWin: true)
         }
-        
-        // 添加动画
-        let rotateAction = SCNAction.rotateBy(x: 0, y: .pi * 2, z: 0, duration: 5)
-        let repeatAction = SCNAction.repeatForever(rotateAction)
-        pokemonNode.runAction(repeatAction)
-        
-        sceneView.scene.rootNode.addChildNode(pokemonNode)
-        self.pokemonNode = pokemonNode
-    }
-    
-    private func getModelName(for pokemonName: String) -> String {
-        // 宝可梦名称到模型文件的映射
-        let modelMapping: [String: String] = [
-            "pikachu": "pikachu",
-            "bulbasaur": "bulbasaur",
-            "charmander": "charmander",
-            "squirtle": "squirtle",
-            "jigglypuff": "jigglypuff",
-            "meowth": "meowth",
-            "psyduck": "psyduck",
-            "growlithe": "growlithe",
-            "poliwag": "poliwag",
-            "abra": "abra",
-            "machop": "machop",
-            "tentacool": "tentacool",
-            "geodude": "geodude",
-            "ponyta": "ponyta",
-            "slowpoke": "slowpoke",
-            "magnemite": "magnemite",
-            "doduo": "doduo",
-            "seel": "seel",
-            "grimer": "grimer",
-            "shellder": "shellder"
-        ]
-        
-        return modelMapping[pokemonName.lowercased()] ?? "default"
     }
     
     @objc private func captureButtonTapped() {
-        guard let pokemon = currentPokemon else {
-            statusLabel.text = "No Pokemon to capture"
+        guard eeveeHealth <= 10 else {
+            showAlert(title: "Cannot Capture", message: "Eevee's health is too high")
             return
         }
         
-        // 禁用按钮，防止重复点击
-        captureButton.isEnabled = false
-        
-        // 显示捕捉动画
-        statusLabel.text = "Capturing \(pokemon.name.capitalized)..."
-        
-        // 模拟捕捉过程
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
-            // 随机决定是否捕捉成功
-            let isSuccess = Bool.random()
-            
-            if isSuccess {
-                self?.statusLabel.text = "Gotcha! \(pokemon.name.capitalized) was caught!"
-                // 将宝可梦添加到Package中
-                PackageViewController.capturedPokemons.append(pokemon)
-            } else {
-                self?.statusLabel.text = "Oh no! \(pokemon.name.capitalized) escaped!"
-            }
-            
-            // 3秒后生成新的宝可梦
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                self?.spawnRandomPokemon()
-            }
+        let success = Bool.random()
+        if success {
+            // 捕捉成功
+            let newEevee = Pokemon(
+                name: "eevee",
+                height: 3,
+                weight: 65,
+                baseExperience: 65,
+                stats: [
+                    Pokemon.Stat(baseStat: 55, name: "hp"),
+                    Pokemon.Stat(baseStat: 55, name: "attack"),
+                    Pokemon.Stat(baseStat: 50, name: "defense"),
+                    Pokemon.Stat(baseStat: 45, name: "special-attack"),
+                    Pokemon.Stat(baseStat: 65, name: "special-defense"),
+                    Pokemon.Stat(baseStat: 55, name: "speed")
+                ],
+                types: [
+                    PokemonType(type: PokemonType.TypeInfo(name: "normal"))
+                ],
+                sprites: Pokemon.Sprites(frontDefault: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/133.png")
+            )
+            PackageViewController.capturedPokemons.append(newEevee)
+            showAlert(title: "Success", message: "Successful capture! Eevee has been added to your package.")
+        } else {
+            // 捕捉失败
+            showAlert(title: "Failed", message: "Capture fail! Try again.")
         }
     }
-}
-
-extension CaptureViewController: ARSCNViewDelegate {
-    func session(_ session: ARSession, didFailWithError error: Error) {
-        statusLabel.text = "AR session failed"
-        captureButton.isEnabled = false
-    }
     
-    func sessionWasInterrupted(_ session: ARSession) {
-        statusLabel.text = "AR session interrupted"
-        captureButton.isEnabled = false
-    }
-    
-    func sessionInterruptionEnded(_ session: ARSession) {
-        startARSession()
-    }
-    
-    func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
-        if anchor is ARPlaneAnchor {
-            statusLabel.text = "Surface detected"
-            spawnRandomPokemon()
+    // MARK: - Battle Logic
+    private func calculateDamage(for skill: String, from pokemon: Pokemon) -> Int {
+        // 根据宝可梦的攻击力和技能类型计算伤害
+        let attackStat = pokemon.stats.first { $0.name == "attack" }?.baseStat ?? 50
+        let baseDamage = 20 // 基础伤害值
+        
+        // 根据技能类型增加伤害
+        var damageMultiplier = 1.0
+        switch skill {
+        case "Impact":
+            damageMultiplier = 0.4 // 原1.2的1/3
+        case "Fight":
+            damageMultiplier = 0.5 // 原1.5的1/3
+        case "Strike":
+            damageMultiplier = 0.43 // 原1.3的1/3
+        default:
+            damageMultiplier = 1.0
         }
+        
+        // 计算最终伤害
+        let finalDamage = Int(Double(baseDamage + attackStat) * damageMultiplier)
+        return finalDamage
+    }
+    
+    private func endBattle(isPlayerWin: Bool) {
+        if isPlayerWin {
+            showAlert(title: "Victory", message: "You defeated Eevee!")
+            isEeveeDefeated = true
+            captureButton.isHidden = false
+        } else {
+            showAlert(title: "Defeat", message: "Your Pokemon fainted!")
+            resetBattle()
+        }
+    }
+    
+    private func battle(playerSkill: String, eeveeSkill: String) -> String {
+        var playerDamage = 0
+        var eeveeDamage = 0
+        
+        // 检查技能克制关系
+        if playerSkill == "Impact" && eeveeSkill == "Strike" {
+            playerDamage = 30
+        } else if playerSkill == "Fight" && eeveeSkill == "Impact" {
+            playerDamage = 30
+        } else if playerSkill == "Strike" && eeveeSkill == "Fight" {
+            playerDamage = 30
+        }
+        
+        if eeveeSkill == "Impact" && playerSkill == "Strike" {
+            eeveeDamage = 30
+        } else if eeveeSkill == "Fight" && playerSkill == "Impact" {
+            eeveeDamage = 30
+        } else if eeveeSkill == "Strike" && playerSkill == "Fight" {
+            eeveeDamage = 30
+        }
+        
+        // 更新血量
+        playerPokemonHealth -= eeveeDamage
+        eeveeHealth -= playerDamage
+        
+        return "\(playerDamage > 0 ? "Effective hit!" : "No effect...")"
+    }
+    
+    private func checkBattleResult() {
+        if playerPokemonHealth <= 0 {
+            showAlert(title: "Game Over", message: "Your Pokemon died!")
+            resetBattle()
+        } else if eeveeHealth <= 0 {
+            showAlert(title: "Victory", message: "Eevee died!")
+            isEeveeDefeated = true
+            captureButton.isHidden = false
+        } else if eeveeHealth <= 10 {
+            captureButton.isHidden = false
+        }
+    }
+    
+    private func resetBattle() {
+        isBattleStarted = false
+        playerPokemonHealth = 100
+        eeveeHealth = 100
+        updateHealthLabel()
+        actionLabel.text = ""
+        captureButton.isHidden = true
+    }
+    
+    private func updateHealthLabel() {
+        healthLabel.text = "\(PackageViewController.selectedPokemon?.name.capitalized ?? "Your Pokemon"): \(playerPokemonHealth) HP | Wild Eevee: \(eeveeHealth) HP"
+    }
+    
+    private func showAlert(title: String, message: String) {
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
     }
 } 
