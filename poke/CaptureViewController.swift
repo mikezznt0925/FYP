@@ -6,7 +6,8 @@ class CaptureViewController: UIViewController, ARSCNViewDelegate {
     
     // MARK: - Properties
     private var arView: ARSCNView!
-    private var eeveeNode: SCNNode?
+    private var playerEeveeNode: SCNNode?
+    private var wildEeveeNode: SCNNode?
     private var eeveeHealth = 100
     private var playerPokemonHealth = 100
     private var isBattleStarted = false
@@ -148,16 +149,44 @@ class CaptureViewController: UIViewController, ARSCNViewDelegate {
     }
     
     private func setupAR() {
-        // 创建伊布模型
-        let eeveeScene = SCNScene(named: "art.scnassets/eevee.scn")!
-        eeveeNode = eeveeScene.rootNode.childNodes.first
-        eeveeNode?.position = SCNVector3(0, 0, -1)
-        eeveeNode?.scale = SCNVector3(0.001, 0.001, 0.001) // 缩小100倍
-        arView.scene.rootNode.addChildNode(eeveeNode!)
+        // 创建玩家的伊布模型
+        guard let playerEeveeScene = SCNScene(named: "art.scnassets/eevee.scn") else {
+            print("Failed to load eevee scene")
+            return
+        }
+        
+        playerEeveeNode = playerEeveeScene.rootNode.childNodes.first
+        playerEeveeNode?.position = SCNVector3(-0.3, 0, -1) // 放在左边，更靠近中心
+        playerEeveeNode?.scale = SCNVector3(0.004, 0.004, 0.004)
+        playerEeveeNode?.eulerAngles.y = .pi / 2 // 向右旋转90度
+        
+        // 创建野生的伊布模型
+        guard let wildEeveeScene = SCNScene(named: "art.scnassets/eevee.scn") else {
+            print("Failed to load eevee scene")
+            return
+        }
+        
+        wildEeveeNode = wildEeveeScene.rootNode.childNodes.first
+        wildEeveeNode?.position = SCNVector3(0.3, 0, -1) // 放在右边，更靠近中心
+        wildEeveeNode?.scale = SCNVector3(0.004, 0.004, 0.004)
+        wildEeveeNode?.eulerAngles.y = -.pi / 2 // 向左旋转90度
+        
+        // 确保arView的scene已初始化
+        if arView.scene == nil {
+            arView.scene = SCNScene()
+        }
+        
+        // 安全地添加节点
+        if let playerEeveeNode = playerEeveeNode {
+            arView.scene.rootNode.addChildNode(playerEeveeNode)
+        }
+        if let wildEeveeNode = wildEeveeNode {
+            arView.scene.rootNode.addChildNode(wildEeveeNode)
+        }
         
         // 设置AR场景
         arView.autoenablesDefaultLighting = true
-        arView.scene.background.contents = nil // 设置为nil以显示相机画面
+        arView.backgroundColor = .clear // 设置背景为透明
     }
     
     private func createSkillButton(title: String) -> UIButton {
