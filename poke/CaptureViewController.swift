@@ -318,7 +318,7 @@ class CaptureViewController: UIViewController, ARSCNViewDelegate {
     }
     
     @objc private func captureButtonTapped() {
-        guard eeveeHealth <= 10 else {
+        guard eeveeHealth <= 0 else {
             showAlert(title: "Cannot Capture", message: "Eevee's health is too high")
             return
         }
@@ -345,10 +345,14 @@ class CaptureViewController: UIViewController, ARSCNViewDelegate {
                 sprites: Pokemon.Sprites(frontDefault: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/133.png")
             )
             PackageViewController.capturedPokemons.append(newEevee)
-            showAlert(title: "Success", message: "Successful capture! Eevee has been added to your package.")
+            showAlert(title: "Success", message: "Successful capture! Eevee has been added to your package.") {
+                self.navigationController?.popViewController(animated: true)
+            }
         } else {
             // 捕捉失败
-            showAlert(title: "Failed", message: "Capture fail! Try again.")
+            showAlert(title: "Failed", message: "Capture fail! Try again.") {
+                self.navigationController?.popViewController(animated: true)
+            }
         }
     }
     
@@ -378,11 +382,11 @@ class CaptureViewController: UIViewController, ARSCNViewDelegate {
     
     private func endBattle(isPlayerWin: Bool) {
         if isPlayerWin {
-            showAlert(title: "Victory", message: "You defeated Eevee!")
             isEeveeDefeated = true
             captureButton.isHidden = false
+            showAlert(title: "Victory", message: "You defeated Eevee! Try to capture it!", shouldReturn: false)
         } else {
-            showAlert(title: "Defeat", message: "Your Pokemon fainted!")
+            showAlert(title: "Defeat", message: "Your Pokemon fainted!", shouldReturn: true)
             resetBattle()
         }
     }
@@ -441,9 +445,14 @@ class CaptureViewController: UIViewController, ARSCNViewDelegate {
         healthLabel.text = "\(PackageViewController.selectedPokemon?.name.capitalized ?? "Your Pokemon"): \(playerPokemonHealth) HP | Wild Eevee: \(eeveeHealth) HP"
     }
     
-    private func showAlert(title: String, message: String) {
+    private func showAlert(title: String, message: String, shouldReturn: Bool = true, completion: (() -> Void)? = nil) {
         let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        alert.addAction(UIAlertAction(title: "OK", style: .default) { [weak self] _ in
+            completion?()
+            if shouldReturn {
+                self?.navigationController?.popViewController(animated: true)
+            }
+        })
         present(alert, animated: true)
     }
 } 
