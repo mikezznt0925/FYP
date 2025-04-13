@@ -100,26 +100,22 @@ class PackageViewController: UIViewController {
             return
         }
         
-        // 获取初始三只宝可梦
-        let initialPokemons = ["blastoise", "charizard", "ivysaur"]
+        // 只获取伊布
+        let eeveeURL = URL(string: "https://pokeapi.co/api/v2/pokemon/eevee")!
         
-        for pokemonName in initialPokemons {
-            guard let url = URL(string: "https://pokeapi.co/api/v2/pokemon/\(pokemonName)") else { continue }
+        URLSession.shared.dataTask(with: eeveeURL) { [weak self] data, response, error in
+            guard let data = data, error == nil else { return }
             
-            URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
-                guard let data = data, error == nil else { return }
-                
-                do {
-                    let pokemon = try JSONDecoder().decode(Pokemon.self, from: data)
-                    DispatchQueue.main.async {
-                        PackageViewController.capturedPokemons.append(pokemon)
-                        self?.tableView.reloadData()
-                    }
-                } catch {
-                    print("Error decoding Pokemon: \(error)")
+            do {
+                let pokemon = try JSONDecoder().decode(Pokemon.self, from: data)
+                DispatchQueue.main.async {
+                    PackageViewController.capturedPokemons.append(pokemon)
+                    self?.tableView.reloadData()
                 }
-            }.resume()
-        }
+            } catch {
+                print("Error decoding Pokemon: \(error)")
+            }
+        }.resume()
         
         // 标记已经加载过初始宝可梦
         PackageViewController.hasLoadedInitialPokemon = true
