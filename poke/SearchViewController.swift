@@ -1,6 +1,7 @@
 import UIKit
 import MapKit
 import CoreLocation
+import SceneKit
 
 class SearchViewController: UIViewController {
     
@@ -31,6 +32,14 @@ class SearchViewController: UIViewController {
     private var pokemonAnnotations: [PokemonAnnotation] = []
     private var savedPokemonLocations: [String: CLLocationCoordinate2D] = [:]
     
+    private let arView: SCNView = {
+        let view = SCNView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        return view
+    }()
+    
+    private var eeveeNode: SCNNode?
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
@@ -41,6 +50,7 @@ class SearchViewController: UIViewController {
         setupLocationButton()
         loadPokemonLocations()  // 加载保存的位置信息
         fetchPokemonData()
+        setupAR()
     }
     
     private func setupMapView() {
@@ -77,7 +87,7 @@ class SearchViewController: UIViewController {
     private func fetchPokemonData() {
         // 获取20种宝可梦的数据
         let pokemonNames = [
-            "pikachu", "bulbasaur", "charmander", "squirtle", "jigglypuff",
+            "eevee", "bulbasaur", "charmander", "squirtle", "jigglypuff",
             "meowth", "psyduck", "growlithe", "poliwag", "abra",
             "machop", "tentacool", "geodude", "ponyta", "slowpoke",
             "magnemite", "doduo", "seel", "grimer", "shellder"
@@ -109,16 +119,16 @@ class SearchViewController: UIViewController {
         mapView.removeAnnotations(pokemonAnnotations)
         pokemonAnnotations.removeAll()
         
-        // 添加皮卡丘在用户位置
+        // 添加伊布在用户位置
         if let userLocation = userLocation {
-            let pikachuAnnotation = PokemonAnnotation(
+            let eeveeAnnotation = PokemonAnnotation(
                 coordinate: userLocation.coordinate,
                 pokemon: pokemons[0],
-                title: "Pikachu"
+                title: "Eevee"
             )
-            pokemonAnnotations.append(pikachuAnnotation)
-            mapView.addAnnotation(pikachuAnnotation)
-            savedPokemonLocations["pikachu"] = userLocation.coordinate
+            pokemonAnnotations.append(eeveeAnnotation)
+            mapView.addAnnotation(eeveeAnnotation)
+            savedPokemonLocations["eevee"] = userLocation.coordinate
         }
         
         // 从剩余的19只宝可梦中随机选择9只
@@ -196,6 +206,32 @@ class SearchViewController: UIViewController {
             longitudinalMeters: 3000
         )
         mapView.setRegion(region, animated: true)
+    }
+    
+    private func setupAR() {
+        // 创建伊布模型
+        guard let eeveeScene = SCNScene(named: "art.scnassets/eevee.scn") else {
+            print("Failed to load eevee scene")
+            return
+        }
+        
+        eeveeNode = eeveeScene.rootNode.childNodes.first
+        eeveeNode?.position = SCNVector3(0, 0, -1)
+        eeveeNode?.scale = SCNVector3(0.001, 0.001, 0.001) // 缩小100倍
+        
+        // 确保arView的scene已初始化
+        if arView.scene == nil {
+            arView.scene = SCNScene()
+        }
+        
+        // 安全地添加节点
+        if let eeveeNode = eeveeNode {
+            arView.scene?.rootNode.addChildNode(eeveeNode)
+        }
+        
+        // 设置AR场景
+        arView.autoenablesDefaultLighting = true
+        arView.backgroundColor = .clear // 设置背景为透明
     }
 }
 
