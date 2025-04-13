@@ -68,14 +68,14 @@ class CaptureViewController: UIViewController, ARSCNViewDelegate {
         
         // 检查是否已选择宝可梦
         if PackageViewController.capturedPokemons.isEmpty {
-            showAlert(title: "Error", message: "You don't have any Pokemon in your package.")
+            showAlert(title: "Error", message: "Please select a Pokemon to battle")
             return
         }
         
         if let selectedPokemon = PackageViewController.selectedPokemon {
             updateHealthLabel()
         } else {
-            showAlert(title: "Error", message: "Please select a Pokemon from your package first.")
+            showAlert(title: "Error", message: "You don't choose a Pokemon to battle")
             return
         }
     }
@@ -178,16 +178,51 @@ class CaptureViewController: UIViewController, ARSCNViewDelegate {
             return
         }
         
-        // 使用选中的宝可梦进行战斗
-        let damage = calculateDamage(for: skill, from: selectedPokemon)
-        eeveeHealth = max(0, eeveeHealth - damage)
+        // 野生宝可梦随机使用技能
+        let eeveeSkills = ["Impact", "Fight", "Strike"]
+        let eeveeSkill = eeveeSkills.randomElement()!
+        
+        var playerDamage = 0
+        var eeveeDamage = 0
+        var playerEffect = ""
+        var eeveeEffect = ""
+        
+        // 检查技能克制关系
+        if skill == "Impact" && eeveeSkill == "Strike" {
+            playerDamage = 30
+            playerEffect = "Effective hit! Impact nullifies Strike!"
+        } else if skill == "Fight" && eeveeSkill == "Impact" {
+            playerDamage = 30
+            playerEffect = "Effective hit! Fight nullifies Impact!"
+        } else if skill == "Strike" && eeveeSkill == "Fight" {
+            playerDamage = 30
+            playerEffect = "Effective hit! Strike nullifies Fight!"
+        }
+        
+        if eeveeSkill == "Impact" && skill == "Strike" {
+            eeveeDamage = 30
+            eeveeEffect = "Effective hit! Impact nullifies Strike!"
+        } else if eeveeSkill == "Fight" && skill == "Impact" {
+            eeveeDamage = 30
+            eeveeEffect = "Effective hit! Fight nullifies Impact!"
+        } else if eeveeSkill == "Strike" && skill == "Fight" {
+            eeveeDamage = 30
+            eeveeEffect = "Effective hit! Strike nullifies Fight!"
+        }
+        
+        // 更新血量
+        eeveeHealth = max(0, eeveeHealth - playerDamage)
+        playerPokemonHealth = max(0, playerPokemonHealth - eeveeDamage)
         
         // 更新UI
+        actionLabel.text = "Your \(selectedPokemon.name.capitalized) used \(skill)!\n\(playerEffect)\nWild Eevee used \(eeveeSkill)!\n\(eeveeEffect)"
         updateHealthLabel()
         
         // 检查战斗是否结束
         if eeveeHealth <= 0 {
             endBattle(isPlayerWin: true)
+        } else if playerPokemonHealth <= 0 {
+            endBattle(isPlayerWin: false)
         }
     }
     
